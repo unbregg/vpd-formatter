@@ -116,8 +116,41 @@ module.exports = function (classDeclaration, sourceFile) {
     deletableNodes = null;
   }
   return {
-    // props() {},
-    // data() {},
+    props(node) {
+      const TYPE_NAMES = ['String', 'Number', 'Boolean', 'Array', 'Object', 'Date', 'Function', 'Symbol']
+      const {
+        properties
+      } = node.initializer;
+      if (ts.isArrayLiteralExpression(node.initializer)) {
+
+      }
+      forEachNodes(properties, (propNode, index, addMember) => {
+        const {
+          initialzier
+        } = propNode
+        if (ts.isIdentifier(initialzier) && TYPE_NAMES.includes(initialzier.text)) {
+
+        }
+        if (ts.isArrayLiteralExpression(initialzier)) {
+
+        }
+        if (ts.isObjectLiteralExpression(initialzier)) {
+
+        }
+      })
+    },
+    data(node) {
+      if (ts.isMethodDeclaration(node)) {
+        const {
+          statements
+        } = node.body
+        if (statements.length === 1 && ts.isReturnStatement(statements[0]) && ts.isObjectLiteralExpression(statements[0].expression)) {
+          forEachNodes(statements[0].expression.properties, (propNode, index, addMember) => {
+
+          })
+        }
+      }
+    },
     computed(node) {
       const {
         properties

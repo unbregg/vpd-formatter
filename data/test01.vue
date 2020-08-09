@@ -113,6 +113,14 @@ const NEW_BUDGET_STATUS_DESC_MAP = {
 };
 
 @Component({
+  props: {
+  	name: String,
+    favo: [Number, String],
+    color: {
+      type: String,
+      default: 'lala'
+    }
+  },
   computed: {
     ...mapGetters("PROMS_BUDGETS", ["createAllowed"]),
     ...mapState("PROMS_BUDGETS/BUDGET_LIST", [
