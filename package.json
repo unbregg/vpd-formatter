@@ -12,6 +12,7 @@
   "dependencies": {
     "@types/node": "^14.0.27",
     "camelize": "^1.0.0",
+    "lodash": "^4.17.19",
     "typescript": "^3.9.7",
     "vue-template-compiler": "^2.6.11"
   },
