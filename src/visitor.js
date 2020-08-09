@@ -104,19 +104,24 @@ module.exports = function (classDeclaration, sourceFile) {
   // 转换后的节点都会放在这
   const memberNodes = [];
   const forEachNodes = (nodes, callback) => {
+    let deletableNodes = [];
     [...nodes].forEach((node, index) => {
-      const addMember = function(node) {
-        memberNodes.push(node);
-        lodash.pullAt(nodes, index);
+      const addMember = function (member) {
+        memberNodes.push(member);
+        deletableNodes.push(node);
       }
       callback(node, index, addMember);
-    })
+    });
+    lodash.pullAll(nodes, deletableNodes);
+    deletableNodes = null;
   }
   return {
     // props() {},
     // data() {},
     computed(node) {
-      const {properties} = node.initializer;
+      const {
+        properties
+      } = node.initializer;
       // 遍历 computed 下的所有属性
       forEachNodes(properties, (propNode, index, addMember) => {
         // 形如 ...mapState('store',[])
@@ -179,9 +184,10 @@ module.exports = function (classDeclaration, sourceFile) {
           const name = propNode.name.text;
           const properties = propNode.initializer.properties;
           properties.forEach((node) => {
-            if (node.name.text === 'get') {
+            const text = node.name.text
+            if (text === 'get') {
               addMember(genGetAccessor(name, node.body));
-            } else {
+            } else if (text === 'set') {
               addMember(
                 genSetAccessor(name, node.body)
               );
