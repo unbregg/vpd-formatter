@@ -1,63 +1,46 @@
 const ts = require('typescript');
+const traverser = require('./traverser');
 const lifecycleHooks = [
-    'beforeCreate',
-    'created',
-    'beforeMount',
-    'mounted',
-    'beforeUpdate',
-    'updated',
-    'beforeDestroy',
-    'destroyed',
+  'beforeCreate',
+  'created',
+  'beforeMount',
+  'mounted',
+  'beforeUpdate',
+  'updated',
+  'beforeDestroy',
+  'destroyed',
 ];
 const supportedPropNames = [
-    'props',
-    'data',
-    'computed',
-    'methods',
-    'watch',
-    ...lifecycleHooks,
+  'props',
+  'data',
+  'computed',
+  'methods',
+  'watch',
+  ...lifecycleHooks,
 ];
 // 找到Component装饰器
 function findComponentDecorator(node) {
-    if (ts.isClassDeclaration(node)) {
-        const {
-            decorators
-        } = node;
-        return decorators.find((node) => {
-            const {
-                expression
-            } = node;
-            if (ts.isCallExpression(expression)) {
-                return expression.expression.text === 'Component';
-            }
-            return false;
-        });
-    }
+  if (ts.isClassDeclaration(node)) {
+    const { decorators } = node;
+    return decorators.find((node) => {
+      const { expression } = node;
+      if (ts.isCallExpression(expression)) {
+        return expression.expression.text === 'Component';
+      }
+      return false;
+    });
+  }
 }
 
 function filterSupportedProps(componentDecorator) {
-    const properties = getPropsFromComponentDecorator(componentDecorator);
-    return properties.filter((prop) => supportedPropNames.includes(prop.name.text));
+  const properties = getPropsFromComponentDecorator(componentDecorator);
+  return properties.filter((prop) =>
+    supportedPropNames.includes(prop.name.text)
+  );
 }
 
 function getPropsFromComponentDecorator(componentDecorator) {
-    return componentDecorator.expression.arguments[0].properties;
-}
-
-function traverseClassDeclaration(classDeclaration, supportedProps) {
-    const {
-        members
-    } = classDeclaration;
-    const visitor = require('./visitor')(classDeclaration, classDeclaration.getSourceFile());
-    supportedProps.forEach((prop) => {
-        const propName = prop.name.text;
-        const newNode = visitor[propName] ?
-            visitor[propName](prop, classDeclaration) :
-            visitor.default(prop, classDeclaration);
-        if (newNode) {
-            members.push(newNode);
-        }
-    });
+  return componentDecorator.expression.arguments[0].properties;
 }
 
 /**
@@ -74,19 +57,18 @@ function traverseClassDeclaration(classDeclaration, supportedProps) {
  * @Component({
  *   components: {compnentName}
  * })
- * @param {SourceFile} sourceFile 
+ * @param {SourceFile} sourceFile
  */
-function beautify(sourceFile) {
-}
+function beautify(sourceFile) {}
 
 module.exports = function (sourceFile) {
-    sourceFile.statements.forEach((node) => {
-        const componentDecorator = findComponentDecorator(node);
-        if (componentDecorator) {
-            const supportedProps = filterSupportedProps(componentDecorator);
-            traverseClassDeclaration(node, supportedProps);
-            beautify(sourceFile);
-        }
-    });
-    return sourceFile;
-}
+  sourceFile.statements.forEach((node) => {
+    const componentDecorator = findComponentDecorator(node);
+    if (componentDecorator) {
+      const supportedProps = filterSupportedProps(componentDecorator);
+      traverser(node, supportedProps);
+      beautify(sourceFile);
+    }
+  });
+  return sourceFile;
+};

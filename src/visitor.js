@@ -10,96 +10,8 @@ const vuexHelperMap = {
   [vuexHelpers[3]]: 'Action',
 };
 
-/**
- * store 是否是 module
- */
-function isModule(callExpression) {
-  const args = callExpression.arguments;
-
-  return args.length === 2;
-}
-
-function normalizeModuleName(name) {
-  if (camelize(name) === name) {
-    return name;
-  }
-  return camelize(name.replace(/\//g, '_').toLocaleLowerCase());
-}
-
-function genModuleStore(moduleName, modulePath) {
-  return ts.createVariableDeclarationList(
-    [
-      ts.createVariableDeclaration(
-        ts.createIdentifier(moduleName),
-        undefined,
-        ts.createCall(ts.createIdentifier('namespace'), undefined, [
-          ts.createStringLiteral(modulePath),
-        ])
-      ),
-    ],
-    ts.NodeFlags.Const
-  );
-}
-
-function genImportNamespace() {
-  return ts.createImportDeclaration(
-    undefined,
-    undefined,
-    ts.createImportClause(
-      undefined,
-      ts.createNamedImports([
-        ts.createImportSpecifier(undefined, ts.createIdentifier('namespace')),
-      ]),
-      false
-    ),
-    ts.createStringLiteral('vuex-class')
-  );
-}
-
-function genModuleHelper(moduleName, type, name, aliasName) {
-  return ts.createProperty(
-    [
-      ts.createDecorator(
-        ts.createCall(
-          ts.createPropertyAccess(
-            ts.createIdentifier(moduleName),
-            ts.createIdentifier(type)
-          ),
-          undefined,
-          [ts.createStringLiteral(name)]
-        )
-      ),
-    ],
-    undefined,
-    ts.createIdentifier(aliasName || name),
-    undefined,
-    ts.createKeywordTypeNode(ts.SyntaxKind.AnyKeyword),
-    undefined
-  );
-}
-
-function genGetAccessor(name, block) {
-  return ts.createGetAccessor(
-    undefined,
-    undefined,
-    ts.createIdentifier(name),
-    [],
-    undefined,
-    block
-  );
-}
-
-function genSetAccessor(name, block) {
-  return ts.createSetAccessor(
-    undefined,
-    undefined,
-    ts.createIdentifier(name),
-    [],
-    block
-  );
-}
-
-module.exports = function (classDeclaration, sourceFile) {
+module.exports = function (classDeclaration) {
+  const sourceFile = classDeclaration.getSourceFile();
   const moduleStoreMap = {};
   // 转换后的节点都会放在这
   const memberNodes = [];
@@ -109,52 +21,77 @@ module.exports = function (classDeclaration, sourceFile) {
       const addMember = function (member) {
         memberNodes.push(member);
         deletableNodes.push(node);
-      }
+      };
       callback(node, index, addMember);
     });
     lodash.pullAll(nodes, deletableNodes);
     deletableNodes = null;
-  }
+  };
   return {
     props(node) {
-      const TYPE_NAMES = ['String', 'Number', 'Boolean', 'Array', 'Object', 'Date', 'Function', 'Symbol']
-      const {
-        properties
-      } = node.initializer;
+      const TYPE_NAMES = [
+        'String',
+        'Number',
+        'Boolean',
+        'Array',
+        'Object',
+        'Date',
+        'Function',
+        'Symbol',
+      ];
+      const { properties } = node.initializer;
       if (ts.isArrayLiteralExpression(node.initializer)) {
-
       }
       forEachNodes(properties, (propNode, index, addMember) => {
-        const {
-          initialzier
-        } = propNode
-        if (ts.isIdentifier(initialzier) && TYPE_NAMES.includes(initialzier.text)) {
-
+        const { initialzier } = propNode;
+        if (
+          ts.isIdentifier(initialzier) &&
+          TYPE_NAMES.includes(initialzier.text)
+        ) {
         }
         if (ts.isArrayLiteralExpression(initialzier)) {
-
         }
         if (ts.isObjectLiteralExpression(initialzier)) {
-
         }
-      })
+      });
     },
     data(node) {
       if (ts.isMethodDeclaration(node)) {
-        const {
-          statements
-        } = node.body
-        if (statements.length === 1 && ts.isReturnStatement(statements[0]) && ts.isObjectLiteralExpression(statements[0].expression)) {
-          forEachNodes(statements[0].expression.properties, (propNode, index, addMember) => {
-
-          })
+        const { statements } = node.body;
+        if (
+          statements.length === 1 &&
+          ts.isReturnStatement(statements[0]) &&
+          ts.isObjectLiteralExpression(statements[0].expression)
+        ) {
+          forEachNodes(
+            statements[0].expression.properties,
+            (propNode, index, addMember) => {}
+          );
         }
       }
     },
     computed(node) {
-      const {
-        properties
-      } = node.initializer;
+      const genGetAccessor = function (name, block) {
+        return ts.createGetAccessor(
+          undefined,
+          undefined,
+          ts.createIdentifier(name),
+          [],
+          undefined,
+          block
+        );
+      };
+
+      const genSetAccessor = function (name, block) {
+        return ts.createSetAccessor(
+          undefined,
+          undefined,
+          ts.createIdentifier(name),
+          [],
+          block
+        );
+      };
+      const { properties } = node.initializer;
       // 遍历 computed 下的所有属性
       forEachNodes(properties, (propNode, index, addMember) => {
         // 形如 ...mapState('store',[])
@@ -209,21 +146,17 @@ module.exports = function (classDeclaration, sourceFile) {
           }
         }
         if (ts.isMethodDeclaration(propNode)) {
-          addMember(
-            genGetAccessor(propNode.name.text, propNode.body)
-          );
+          addMember(genGetAccessor(propNode.name.text, propNode.body));
         }
         if (ts.isPropertyAssignment(propNode)) {
           const name = propNode.name.text;
           const properties = propNode.initializer.properties;
           properties.forEach((node) => {
-            const text = node.name.text
+            const text = node.name.text;
             if (text === 'get') {
               addMember(genGetAccessor(name, node.body));
             } else if (text === 'set') {
-              addMember(
-                genSetAccessor(name, node.body)
-              );
+              addMember(genSetAccessor(name, node.body));
             }
           });
         }
@@ -233,8 +166,8 @@ module.exports = function (classDeclaration, sourceFile) {
     // methods() {},
     // watch() {},
     // mixins() {},
-    default (node) {
+    default(node) {
       return node;
     },
   };
-}
+};

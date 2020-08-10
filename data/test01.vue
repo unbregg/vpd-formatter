@@ -113,13 +113,25 @@ const NEW_BUDGET_STATUS_DESC_MAP = {
 };
 
 @Component({
+  data() {
+    return {
+      a: "",
+      b: {},
+      c: () => {},
+      d: 123,
+    };
+  },
   props: {
-  	name: String,
+    name: String,
     favo: [Number, String],
     color: {
       type: String,
-      default: 'lala'
-    }
+      default: "lala",
+    },
+    arr: {
+      type: [String, Number],
+      default: "wah",
+    },
   },
   computed: {
     ...mapGetters("PROMS_BUDGETS", ["createAllowed"]),
@@ -148,6 +160,7 @@ const NEW_BUDGET_STATUS_DESC_MAP = {
   },
 })
 export default class BudgetList extends Vue {
+  @Prop readonly propA: any;
   @PlanModule.Getter(PLAN_MODULE.GET_LESSON_METHODS) lessonMethods: EnumType;
   BudgetOp: any = BudgetOp;
   BudgetStatus: any = BudgetStatus;
