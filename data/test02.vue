@@ -131,6 +131,14 @@ function aggBizDateCellList(list: DataCell[]): {}[] {
 
 @Component({
   components: { TargetCard: CTargetCard, MonthForecastCard, DayForecastCard, TitleCollapse, ForecastChartPart, ForecastConcludPart },
+  data() {
+    return {
+      name: '',
+      color: 123,
+      func() {},
+      func2: () => {}
+    }
+  },
   computed: {
     ...mapState('PROMS_BUDGETS/CONFIG_BUDGET', [
       'budgetDetail',
