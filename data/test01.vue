@@ -152,6 +152,11 @@ function aggBizDateCellList(list: DataCell[]): {}[] {
       'submitBudgetConfig',
       'calcAndRefreshDizData',
     ]),
+    ...mapActions("PROMS_BUDGETS/BUDGET_LIST", ["updateQuery", "doQuery"]),
+    getClolor() {
+
+    },
+    getName: function() {}
   },
   watch: {
     $route: {
