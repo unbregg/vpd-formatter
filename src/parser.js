@@ -1,9 +1,6 @@
 const ts = require('typescript');
-const vueTemplateCompiler = require('vue-template-compiler');
 
-module.exports = function (content) {
-    const sfc = vueTemplateCompiler.parseComponent(content);
-    const jsContent = sfc.script.content;
+module.exports = function (jsContent) {
     return ts.createSourceFile(
         '',
         jsContent,
