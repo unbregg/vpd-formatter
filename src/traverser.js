@@ -328,16 +328,31 @@ function getVisitor(classDeclaration, memberNodes) {
           forEachNodes(
             statements[0].expression.properties,
             (propNode, index, addMember) => {
-              // addMember(
-              //   ts.createProperty(
-              //     undefined,
-              //     undefined,
-              //     ts.createIdentifier(propNode.name.text),
-              //     undefined,
-              //     undefined,
-              //     ts.createStringLiteral(propNode.initializer.text)
-              //   )
-              // );
+              if (ts.isMethodDeclaration(propNode)) {
+                addMember(ts.createMethod(
+                  undefined,
+                  undefined,
+                  undefined,
+                  ts.createIdentifier(propNode.name.text),
+                  undefined,
+                  undefined,
+                  [],
+                  undefined,
+                  propNode.body
+                ))
+              }
+              if(ts.isPropertyAssignment(propNode)) {
+                addMember(
+                  ts.createProperty(
+                    undefined,
+                    undefined,
+                    ts.createIdentifier(propNode.name.text),
+                    undefined,
+                    undefined,
+                    propNode.initializer
+                  )
+                );
+              }
             }
           );
         }
