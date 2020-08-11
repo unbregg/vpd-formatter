@@ -31,6 +31,17 @@ module.exports = function (classDeclaration, supportedProps) {
   classDeclaration.members = [...memberNodes, ...classDeclaration.members];
 };
 
+function genPropMember(name, initializer) {
+  return ts.createProperty(
+    undefined,
+    undefined,
+    ts.createIdentifier(name),
+    undefined,
+    undefined,
+    initializer
+  )
+}
+
 function insertBeforeClassDeclaration(sourceFile, node) {
   const index = sourceFile.statements.findIndex((item) =>
     ts.isClassDeclaration(item)
@@ -122,6 +133,65 @@ function getVisitor(classDeclaration, memberNodes) {
     lodash.pullAll(nodes, deletableNodes);
     deletableNodes = null;
   };
+  /**
+   * 主要是为了生成moduleHelper，但也会判断是否需要导入 namespace 等
+   * @param {*} propNode 
+   * @param {*} addMember 
+   */
+  function genModule(propNode, addMember) {
+    // 形如 ...mapState('store',[])
+    if (ts.isSpreadAssignment(propNode)) {
+     const callExpression = propNode.expression;
+     if (
+       ts.isCallExpression(callExpression) &&
+       vuexHelpers.includes(callExpression.expression.text)
+     ) {
+       const vuexHelperName = callExpression.expression.text;
+       const args = callExpression.arguments;
+       if (isModule(callExpression)) {
+         const modulePath = args[0].text;
+         const mapNode = args[1];
+         const moduleName = normalizeModuleName(modulePath);
+         // 如果还没有moduleStore，则在开始引入 namespace
+         if (!Object.keys(moduleStoreMap).length) {
+           sourceFile.statements.unshift(genImportNamespace());
+         }
+         if (!moduleStoreMap[moduleName]) {
+           insertBeforeClassDeclaration(
+             sourceFile,
+             genModuleStore(moduleName, modulePath)
+           );
+           moduleStoreMap[moduleName] = true;
+         }
+         if (ts.isArrayLiteralExpression(mapNode)) {
+           mapNode.elements.forEach((ele) => {
+             addMember(
+               genModuleHelper(
+                 moduleName,
+                 vuexHelperMap[vuexHelperName],
+                 ele.text
+               )
+             );
+           });
+         }
+         if (ts.isObjectLiteralExpression(mapNode)) {
+           mapNode.properties.forEach((ele) => {
+             addMember(
+               genModuleHelper(
+                 moduleName,
+                 vuexHelperMap[vuexHelperName],
+                 ele.name.text,
+                 ele.initializer.text
+               )
+             );
+           });
+         }
+       } else {
+         // 非module
+       }
+     }
+   }
+ }
   return {
     props(node) {
       const TYPE_NAMES = [
@@ -297,58 +367,7 @@ function getVisitor(classDeclaration, memberNodes) {
       const { properties } = node.initializer;
       // 遍历 computed 下的所有属性
       forEachNodes(properties, (propNode, index, addMember) => {
-        // 形如 ...mapState('store',[])
-        if (ts.isSpreadAssignment(propNode)) {
-          const callExpression = propNode.expression;
-          if (
-            ts.isCallExpression(callExpression) &&
-            vuexHelpers.includes(callExpression.expression.text)
-          ) {
-            const vuexHelperName = callExpression.expression.text;
-            const args = callExpression.arguments;
-            if (isModule(callExpression)) {
-              const modulePath = args[0].text;
-              const mapNode = args[1];
-              const moduleName = normalizeModuleName(modulePath);
-              // 如果还没有moduleStore，则在开始引入 namespace
-              if (!Object.keys(moduleStoreMap).length) {
-                sourceFile.statements.unshift(genImportNamespace());
-              }
-              if (!moduleStoreMap[moduleName]) {
-                insertBeforeClassDeclaration(
-                  sourceFile,
-                  genModuleStore(moduleName, modulePath)
-                );
-                moduleStoreMap[moduleName] = true;
-              }
-              if (ts.isArrayLiteralExpression(mapNode)) {
-                mapNode.elements.forEach((ele) => {
-                  addMember(
-                    genModuleHelper(
-                      moduleName,
-                      vuexHelperMap[vuexHelperName],
-                      ele.text
-                    )
-                  );
-                });
-              }
-              if (ts.isObjectLiteralExpression(mapNode)) {
-                mapNode.properties.forEach((ele) => {
-                  addMember(
-                    genModuleHelper(
-                      moduleName,
-                      vuexHelperMap[vuexHelperName],
-                      ele.name.text,
-                      ele.initializer.text
-                    )
-                  );
-                });
-              }
-            } else {
-              // 非module
-            }
-          }
-        }
+        genModule(propNode, addMember)
         if (ts.isMethodDeclaration(propNode)) {
           addMember(genGetAccessor(propNode.name.text, propNode.body));
         }
@@ -368,7 +387,18 @@ function getVisitor(classDeclaration, memberNodes) {
     },
     provide() {},
     inject() {},
-    methods() {},
+    methods(node) {
+      const { properties } = node.initializer;
+      forEachNodes(properties, (propNode, index, addMember) => {
+        if (ts.isMethodDeclaration(propNode) || ts.isPropertyAssignment(propNode)) {
+          addMember(propNode)
+        }
+        if (ts.isPropertyAssignment(propNode)) {}
+        if (ts.isSpreadAssignment(propNode)) {
+          genModule(propNode, addMember)
+        }
+      })
+    },
     watch() {},
     mixins() {},
     default(node) {

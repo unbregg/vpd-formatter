@@ -153,6 +153,10 @@ const NEW_BUDGET_STATUS_DESC_MAP = {
   },
   methods: {
     ...mapActions("PROMS_BUDGETS/BUDGET_LIST", ["updateQuery", "doQuery"]),
+    getClolor() {
+
+    },
+    getName: function() {}
   },
   created() {
     this.query = this.queryInStore;
