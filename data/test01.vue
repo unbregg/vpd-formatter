@@ -159,6 +159,13 @@ function aggBizDateCellList(list: DataCell[]): {}[] {
     getName: function() {}
   },
   watch: {
+    dataFilter(newVal, oldVal) {
+        if (JSON.stringify(newVal) === JSON.stringify(oldVal)) return;
+        this.fetchChartData(this);
+     },
+    series: function(val) {
+      drawChart(this.$refs.container, { series: this.series, dim: this.dim, budget: this.baseBudgetDetail });
+    },
     $route: {
       immediate: true,
       handler() {

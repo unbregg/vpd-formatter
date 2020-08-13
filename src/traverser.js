@@ -39,7 +39,7 @@ function genPropMember(name, initializer) {
     undefined,
     undefined,
     initializer
-  )
+  );
 }
 
 function insertBeforeClassDeclaration(sourceFile, node) {
@@ -117,6 +117,59 @@ function genModuleHelper(moduleName, type, name, aliasName) {
   );
 }
 
+function genPropertyAssignment(propNode) {
+  return ts.createMethod(
+    undefined,
+    undefined,
+    undefined,
+    ts.createIdentifier(propNode.name.text),
+    undefined,
+    undefined,
+    [],
+    undefined,
+    propNode.body
+  );
+}
+
+function genMethodDeclaration(propNode) {
+  return ts.createMethod(
+    undefined,
+    undefined,
+    undefined,
+    ts.createIdentifier(propNode.name.text),
+    undefined,
+    undefined,
+    [],
+    undefined,
+    propNode.body || propNode.initializer.body
+  );
+}
+
+function genWatchHelper(decoratorName, decoratorParameters, methodName, parameters, block) {
+  return ts.createMethod(
+    [
+      ts.createDecorator(
+        ts.createCall(ts.createIdentifier('Watch'), undefined, 
+        decoratorParameters ? [
+          ts.createStringLiteral(decoratorName),
+          ts.createObjectLiteral(
+            decoratorParameters,
+            false
+          )
+        ] : [ts.createStringLiteral(decoratorName)])
+      ),
+    ],
+    undefined,
+    undefined,
+    ts.createIdentifier(methodName),
+    undefined,
+    undefined,
+    [...parameters],
+    undefined,
+    block
+  );
+}
+
 function getVisitor(classDeclaration, memberNodes) {
   const sourceFile = classDeclaration.getSourceFile();
   const moduleStoreMap = {};
@@ -135,63 +188,63 @@ function getVisitor(classDeclaration, memberNodes) {
   };
   /**
    * 主要是为了生成moduleHelper，但也会判断是否需要导入 namespace 等
-   * @param {*} propNode 
-   * @param {*} addMember 
+   * @param {*} propNode
+   * @param {*} addMember
    */
   function genModule(propNode, addMember) {
     // 形如 ...mapState('store',[])
     if (ts.isSpreadAssignment(propNode)) {
-     const callExpression = propNode.expression;
-     if (
-       ts.isCallExpression(callExpression) &&
-       vuexHelpers.includes(callExpression.expression.text)
-     ) {
-       const vuexHelperName = callExpression.expression.text;
-       const args = callExpression.arguments;
-       if (isModule(callExpression)) {
-         const modulePath = args[0].text;
-         const mapNode = args[1];
-         const moduleName = normalizeModuleName(modulePath);
-         // 如果还没有moduleStore，则在开始引入 namespace
-         if (!Object.keys(moduleStoreMap).length) {
-           sourceFile.statements.unshift(genImportNamespace());
-         }
-         if (!moduleStoreMap[moduleName]) {
-           insertBeforeClassDeclaration(
-             sourceFile,
-             genModuleStore(moduleName, modulePath)
-           );
-           moduleStoreMap[moduleName] = true;
-         }
-         if (ts.isArrayLiteralExpression(mapNode)) {
-           mapNode.elements.forEach((ele) => {
-             addMember(
-               genModuleHelper(
-                 moduleName,
-                 vuexHelperMap[vuexHelperName],
-                 ele.text
-               )
-             );
-           });
-         }
-         if (ts.isObjectLiteralExpression(mapNode)) {
-           mapNode.properties.forEach((ele) => {
-             addMember(
-               genModuleHelper(
-                 moduleName,
-                 vuexHelperMap[vuexHelperName],
-                 ele.name.text,
-                 ele.initializer.text
-               )
-             );
-           });
-         }
-       } else {
-         // 非module
-       }
-     }
-   }
- }
+      const callExpression = propNode.expression;
+      if (
+        ts.isCallExpression(callExpression) &&
+        vuexHelpers.includes(callExpression.expression.text)
+      ) {
+        const vuexHelperName = callExpression.expression.text;
+        const args = callExpression.arguments;
+        if (isModule(callExpression)) {
+          const modulePath = args[0].text;
+          const mapNode = args[1];
+          const moduleName = normalizeModuleName(modulePath);
+          // 如果还没有moduleStore，则在开始引入 namespace
+          if (!Object.keys(moduleStoreMap).length) {
+            sourceFile.statements.splice(1, 0, genImportNamespace());
+          }
+          if (!moduleStoreMap[moduleName]) {
+            insertBeforeClassDeclaration(
+              sourceFile,
+              genModuleStore(moduleName, modulePath)
+            );
+            moduleStoreMap[moduleName] = true;
+          }
+          if (ts.isArrayLiteralExpression(mapNode)) {
+            mapNode.elements.forEach((ele) => {
+              addMember(
+                genModuleHelper(
+                  moduleName,
+                  vuexHelperMap[vuexHelperName],
+                  ele.text
+                )
+              );
+            });
+          }
+          if (ts.isObjectLiteralExpression(mapNode)) {
+            mapNode.properties.forEach((ele) => {
+              addMember(
+                genModuleHelper(
+                  moduleName,
+                  vuexHelperMap[vuexHelperName],
+                  ele.name.text,
+                  ele.initializer.text
+                )
+              );
+            });
+          }
+        } else {
+          // 非module
+        }
+      }
+    }
+  }
   return {
     props(node) {
       const TYPE_NAMES = [
@@ -270,7 +323,7 @@ function getVisitor(classDeclaration, memberNodes) {
               ts.createCall(
                 ts.createIdentifier('Prop'),
                 undefined,
-                vueType && [vueType]
+                vueType ? [vueType] : undefined
               )
             ),
           ],
@@ -329,29 +382,10 @@ function getVisitor(classDeclaration, memberNodes) {
             statements[0].expression.properties,
             (propNode, index, addMember) => {
               if (ts.isMethodDeclaration(propNode)) {
-                addMember(ts.createMethod(
-                  undefined,
-                  undefined,
-                  undefined,
-                  ts.createIdentifier(propNode.name.text),
-                  undefined,
-                  undefined,
-                  [],
-                  undefined,
-                  propNode.body
-                ))
+                addMember(genMethodDeclaration(propNode));
               }
-              if(ts.isPropertyAssignment(propNode)) {
-                addMember(
-                  ts.createProperty(
-                    undefined,
-                    undefined,
-                    ts.createIdentifier(propNode.name.text),
-                    undefined,
-                    undefined,
-                    propNode.initializer
-                  )
-                );
+              if (ts.isPropertyAssignment(propNode)) {
+                addMember(genPropertyAssignment(propNode));
               }
             }
           );
@@ -382,7 +416,7 @@ function getVisitor(classDeclaration, memberNodes) {
       const { properties } = node.initializer;
       // 遍历 computed 下的所有属性
       forEachNodes(properties, (propNode, index, addMember) => {
-        genModule(propNode, addMember)
+        genModule(propNode, addMember);
         if (ts.isMethodDeclaration(propNode)) {
           addMember(genGetAccessor(propNode.name.text, propNode.body));
         }
@@ -405,16 +439,56 @@ function getVisitor(classDeclaration, memberNodes) {
     methods(node) {
       const { properties } = node.initializer;
       forEachNodes(properties, (propNode, index, addMember) => {
-        if (ts.isMethodDeclaration(propNode) || ts.isPropertyAssignment(propNode)) {
-          addMember(propNode)
+        if (
+          ts.isMethodDeclaration(propNode) ||
+          ts.isPropertyAssignment(propNode)
+        ) {
+          addMember(genMethodDeclaration(propNode));
         }
-        if (ts.isPropertyAssignment(propNode)) {}
         if (ts.isSpreadAssignment(propNode)) {
-          genModule(propNode, addMember)
+          genModule(propNode, addMember);
         }
-      })
+      });
     },
-    watch() {},
+    watch(node) {
+      const { properties } = node.initializer;
+      forEachNodes(properties, (propNode, index, addMember) => {
+        const { name, parameters, body, initializer } = propNode;
+        if (ts.isMethodDeclaration(propNode)) {
+          addMember(genWatchHelper(name.text, null, name.text, parameters, body));
+        }
+        if (ts.isPropertyAssignment(propNode)) {
+          if (
+            ts.isFunctionExpression(initializer) ||
+            ts.isArrowFunction(initializer)
+          ) {
+            addMember(
+              genWatchHelper(
+                name.text,
+                null,
+                name.text,
+                initializer.parameters,
+                initializer.body
+              )
+            );
+          }
+          if (ts.isObjectLiteralExpression(initializer)) {
+            const restProperties = [];
+            let handler;
+            initializer.properties.forEach((prop) => {
+              if (prop.name.text === 'handler') {
+                handler = prop;
+              } else {
+                restProperties.push(prop);
+              }
+            });
+            if(ts.isMethodDeclaration(handler)) {
+              addMember(genWatchHelper(name.text, restProperties, name.text, handler.parameters, handler.body));
+            }
+          }
+        }
+      });
+    },
     mixins() {},
     default(node) {
       return node;
