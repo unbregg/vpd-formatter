@@ -1,1 +1,3 @@
-# 一个例子
+# vpd-formatter
+
+vue-property-decorator formatter
