@@ -147,6 +147,7 @@ function beautify(sourceFile) {
   }
   const vuePropertyDecoratorIndex = statements.findIndex(
     (item) =>
+      ts.isImportDeclaration(item) &&
       item.moduleSpecifier.text === 'vue-property-decorator'
   )
   // 将原有的 vue-property-decorator 替换为新的
