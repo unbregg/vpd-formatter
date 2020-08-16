@@ -31,17 +31,6 @@ module.exports = function (classDeclaration, supportedProps) {
   classDeclaration.members = [...memberNodes, ...classDeclaration.members];
 };
 
-function genPropMember(name, initializer) {
-  return ts.createProperty(
-    undefined,
-    undefined,
-    ts.createIdentifier(name),
-    undefined,
-    undefined,
-    initializer
-  );
-}
-
 function insertBeforeClassDeclaration(sourceFile, node) {
   const index = sourceFile.statements.findIndex((item) =>
     ts.isClassDeclaration(item)
@@ -118,16 +107,13 @@ function genModuleHelper(moduleName, type, name, aliasName) {
 }
 
 function genPropertyAssignment(propNode) {
-  return ts.createMethod(
-    undefined,
+  return ts.createProperty(
     undefined,
     undefined,
     ts.createIdentifier(propNode.name.text),
     undefined,
     undefined,
-    [],
-    undefined,
-    propNode.body
+    propNode.initializer
   );
 }
 

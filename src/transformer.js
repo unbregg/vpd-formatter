@@ -99,10 +99,19 @@ function beautify(sourceFile) {
       const properties = getPropsFromComponentDecorator(componentDecorator);
       const deletableNodes = [];
 
-      [...properties].forEach((prop, index) => {
-        if (ts.isPropertyAssignment(prop)) {
+      [...properties]
+      .forEach((prop) => {
+        // 删掉内容为空对象的节点，例如 props: {} 、methods: {} 这种
+        // 为什么supportedPropNames.includes(prop.name.text)要重复判断，因为担心有其他节点类型没有prop.name.text
+        if (ts.isPropertyAssignment(prop) && supportedPropNames.includes(prop.name.text)) {
           if (prop.initializer.properties.length === 0) {
-            deletableNodes.push(prop)
+            deletableNodes.push(prop);
+          }
+        }
+        if (ts.isMethodDeclaration(prop) && supportedPropNames.includes(prop.name.text)) {
+          const returnStatement = prop.body.statements[0];
+          if (ts.isReturnStatement(returnStatement) && ts.isObjectLiteralExpression(returnStatement.expression) && returnStatement.expression.properties.length === 0) {
+            deletableNodes.push(prop);
           }
         }
       })
@@ -152,7 +161,6 @@ function beautify(sourceFile) {
   )
   // 将原有的 vue-property-decorator 替换为新的
   insertImportDeclaration(sourceFile, genImport(Object.keys(names)), vuePropertyDecoratorIndex);
-
 }
 
 module.exports = function (sourceFile) {

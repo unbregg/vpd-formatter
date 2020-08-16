@@ -5,6 +5,7 @@ module.exports = function (jsContent) {
         '',
         jsContent,
         ts.ScriptTarget.ES2015,
-        true
+        true,
+        ts.ScriptKind.TS
     );
 }
