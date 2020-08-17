@@ -31,6 +31,19 @@ module.exports = function (classDeclaration, supportedProps) {
   classDeclaration.members = [...memberNodes, ...classDeclaration.members];
 };
 
+/**
+ * Avoid defining component methods that start with _ or $. 不然可能会有冲突
+ * @description 
+ * @param {String} name 
+ */
+function normalizeMethodName(name) {
+  const illegalMethodSymbol = ['$', '_']
+  if(illegalMethodSymbol.some(s => name.startsWith(s))) {
+    return name.replace(/^(\$|\_)/, '');
+  }
+  return name;
+}
+
 function insertBeforeClassDeclaration(sourceFile, node) {
   const index = sourceFile.statements.findIndex((item) =>
     ts.isClassDeclaration(item)
@@ -441,7 +454,7 @@ function getVisitor(classDeclaration, memberNodes) {
       forEachNodes(properties, (propNode, index, addMember) => {
         const { name, parameters, body, initializer } = propNode;
         if (ts.isMethodDeclaration(propNode)) {
-          addMember(genWatchHelper(name.text, null, name.text, parameters, body));
+          addMember(genWatchHelper(name.text, null, normalizeMethodName(name.text), parameters, body));
         }
         if (ts.isPropertyAssignment(propNode)) {
           if (
@@ -452,7 +465,7 @@ function getVisitor(classDeclaration, memberNodes) {
               genWatchHelper(
                 name.text,
                 null,
-                name.text,
+                normalizeMethodName(name.text),
                 initializer.parameters,
                 initializer.body
               )
@@ -469,7 +482,7 @@ function getVisitor(classDeclaration, memberNodes) {
               }
             });
             if(ts.isMethodDeclaration(handler)) {
-              addMember(genWatchHelper(name.text, restProperties, name.text, handler.parameters, handler.body));
+              addMember(genWatchHelper(name.text, restProperties, normalizeMethodName(name.text), handler.parameters, handler.body));
             }
           }
         }
