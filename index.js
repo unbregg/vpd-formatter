@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 const filepath = process.argv[2];
 if (!filepath) {
   throw new Error('请指定文件夹路径');
